@@ -1,0 +1,6 @@
+# Directories
+.git
+.cache
+node_modules
+bin
+static
