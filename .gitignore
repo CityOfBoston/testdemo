@@ -63,3 +63,6 @@ bundle-stats.json
 
 # Local environment variables
 .env
+
+# Python
+*.pyc

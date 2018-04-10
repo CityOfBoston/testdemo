@@ -1,0 +1,2 @@
+VIRTUAL_HOST={{ INSTANCE_NAME }}.test.boston.gov
+DEBUG=true
