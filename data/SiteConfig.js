@@ -1,8 +1,8 @@
 module.exports = {
   blogPostDir: "posts", // The name of directory that contains your posts.
   lessonsDir: "lessons", // The name of the directory that contains lessons or docs.
-  siteTitle: "Gatsby Docs Starter", // Site title.
-  siteTitleAlt: "Gatsby Starter Template for Creating Docs", // Alternative site title for SEO.
+  siteTitle: "Boston Test Demo", // Site title.
+  siteTitleAlt: "Boston Test Infrastructure demo", // Alternative site title for SEO.
   siteLogo: "/logos/logo-1024.png", // Logo used for SEO and manifest.
   siteUrl: "https://ericwindmill.com", // Domain of your website without pathPrefix.
   pathPrefix: "/", // Prefixes all links. For cases when deployed to example.github.io/gatsby-advanced-starter/.
