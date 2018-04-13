@@ -1,2 +1,2 @@
-VIRTUAL_HOST={{ INSTANCE_NAME }}.test.boston.gov
+VIRTUAL_HOST=%(INSTANCE_NAME)s.test.boston.gov
 DEBUG=true
