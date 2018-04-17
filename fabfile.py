@@ -8,6 +8,7 @@ from fabric.contrib.files import upload_template, exists
 
 # TODO:
 # Add update method
+#   - Figure out why update screws up the running container
 # Add start, stop, restart, list methods
 # Make sure steps to implement are documented
 # Create user account with RSA keys for github
@@ -171,11 +172,6 @@ def _setup_service():
     """
     Set up the service
     """
-    # Create the container if it doesn't exist
-    containers = run('docker ps -a --filter name={app_name}-{instance_name} --format "{{{{.ID}}}}"'.format(**env))
-    if len(containers) == 0:
-        run('docker create --env-file /testing/{app_name}/{instance_name}/test.env --name {app_name}-{instance_name} {repository_url}:latest'.format(**env))
-
     systemd_template = 'deploy/systemd-test.conf.template'
     systemd_tmp_dest = '/tmp/{instance_name}.service'.format(**env)
     systemd_dest = '/etc/systemd/system/{instance_name}.service'.format(**env)
@@ -214,6 +210,18 @@ def _update_image():
     run("eval $(aws ecr get-login --no-include-email --region us-east-1) && "
         "docker pull {repository_url}:latest".format(**env))
 
+    # Delete the container if it exists
+    containers = run('docker ps -a --filter name={app_name}-{instance_name} --format "{{{{.ID}}}}"'.format(**env))
+    if len(containers) > 0:
+        run('docker stop -t2 {app_name}-{instance_name}'.format(**env))
+        run('docker rm {app_name}-{instance_name}'.format(**env))
+
+    run('docker create --env-file /testing/{app_name}/{instance_name}/test.env --name {app_name}-{instance_name} {repository_url}:latest'.format(**env))
+
+    # If the container existed before, we need to start it again
+    if len(containers) > 0:
+        run('docker start -a {app_name}-{instance_name}'.format(**env))
+
 
 def _prune_docker():
     """
@@ -245,8 +253,8 @@ def create_test_instance(branch_name, instance_name=''):
     _build()
     _upload_to_repository()
     _setup_path()
-    _update_image()
     _setup_templates()
+    _update_image()
     _setup_service()
 
 
