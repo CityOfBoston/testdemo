@@ -6,6 +6,17 @@ from botocore.exceptions import ClientError
 from fabric.api import env, local, sudo, run
 from fabric.contrib.files import upload_template, exists
 
+# TODO:
+# Add update method
+# Add start, stop, restart, list methods
+# Make sure steps to implement are documented
+# Create user account with RSA keys for github
+# Do creation on the test server
+# Do a shallow git clone into the test directory that can be updated
+# Decide what to do with existing "<name>.test.boston.gov" apps
+# Get wildcard domain for test.boston.gov
+# Database and supplimental services
+
 escape_decoder = codecs.getdecoder('unicode_escape')
 
 if os.path.exists('.env'):
@@ -236,6 +247,25 @@ def create_test_instance(branch_name, instance_name=''):
     _update_image()
     _setup_templates()
     _setup_service()
+
+
+def update_test_instance(instance_name):
+    """
+    Update a test instance with a new image
+    """
+    env.instance_name = instance_name
+    env.branch_name = local('git rev-parse --abbrev-ref HEAD')
+    env.release = local('git rev-parse --verify HEAD')
+    env.context = {
+        'APP_NAME': env.app_name,
+        'INSTANCE_NAME': instance_name,
+        'BRANCH_NAME': env.branch_name,
+        'RELEASE': env.release,
+    }
+    _build()
+    _upload_to_repository()
+    _update_image()
+    sudo('systemctl start {instance_name}.service'.format(**env))
 
 
 def remove_test_instance(instance_name):
