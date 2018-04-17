@@ -17,6 +17,7 @@ from fabric.contrib.files import upload_template, exists
 # Get wildcard domain for test.boston.gov
 # Database and supplimental services
 
+
 escape_decoder = codecs.getdecoder('unicode_escape')
 
 if os.path.exists('.env'):
@@ -63,7 +64,7 @@ def _repository_exists(repo_name):
             raise e
 
 
-def _create_repository():
+def _get_or_create_repository():
     """
     Create a new Docker repository on ECR using the app_name/instance_name as
     the name of the repo
@@ -240,7 +241,7 @@ def create_test_instance(branch_name, instance_name=''):
         'BRANCH_NAME': env.branch_name,
         'RELEASE': env.release,
     }
-    env.repository_url = _create_repository()
+    env.repository_url = _get_or_create_repository()
     _build()
     _upload_to_repository()
     _setup_path()
@@ -262,6 +263,7 @@ def update_test_instance(instance_name):
         'BRANCH_NAME': env.branch_name,
         'RELEASE': env.release,
     }
+    env.repository_url = _get_or_create_repository()
     _build()
     _upload_to_repository()
     _update_image()
