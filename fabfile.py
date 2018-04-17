@@ -287,3 +287,17 @@ def remove_test_instance(instance_name):
     _remove_service()
     _remove_path()
     _prune_docker()
+
+
+def list_test_instances(app_name=''):
+    """
+    @brief      return a list of test instances on the server
+
+    @return     outputs the list to the console
+    """
+    if app_name:
+        find_cmd = 'find /testing/{}/ -mindepth 1 -maxdepth 1 -type d -print '.format(app_name)
+    else:
+        find_cmd = 'find /testing/ -mindepth 2 -maxdepth 2 -type d -print'
+    output = run('{} | sed -e "s;/testing/;;g;s;/;-;g"'.format(find_cmd))
+    print output
