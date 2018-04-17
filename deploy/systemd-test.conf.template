@@ -1,5 +1,5 @@
 [Unit]
-Description=%(INSTANCE_NAME)s
+Description=%(APP_NAME)s-%(INSTANCE_NAME)s
 Requires=docker.service
 After=docker.service
 

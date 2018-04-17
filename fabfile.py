@@ -6,6 +6,17 @@ from botocore.exceptions import ClientError
 from fabric.api import env, local, sudo, run
 from fabric.contrib.files import upload_template, exists
 
+# TODO:
+# Add start, stop, restart, list methods
+# Make sure steps to implement are documented
+# Create user account with RSA keys for github
+# Do creation on the test server
+# Do a shallow git clone into the test directory that can be updated
+# Decide what to do with existing "<name>.test.boston.gov" apps
+# Get wildcard domain for test.boston.gov
+# Database and supplimental services
+
+
 escape_decoder = codecs.getdecoder('unicode_escape')
 
 if os.path.exists('.env'):
@@ -52,7 +63,7 @@ def _repository_exists(repo_name):
             raise e
 
 
-def _create_repository():
+def _get_or_create_repository():
     """
     Create a new Docker repository on ECR using the app_name/instance_name as
     the name of the repo
@@ -159,29 +170,24 @@ def _setup_service():
     """
     Set up the service
     """
-    # Create the container if it doesn't exist
-    containers = run('docker ps -a --filter name={app_name}-{instance_name} --format "{{{{.ID}}}}"'.format(**env))
-    if len(containers) == 0:
-        run('docker create --env-file /testing/{app_name}/{instance_name}/test.env --name {app_name}-{instance_name} {repository_url}:latest'.format(**env))
-
     systemd_template = 'deploy/systemd-test.conf.template'
-    systemd_tmp_dest = '/tmp/{instance_name}.service'.format(**env)
-    systemd_dest = '/etc/systemd/system/{instance_name}.service'.format(**env)
+    systemd_tmp_dest = '/tmp/{app_name}-{instance_name}.service'.format(**env)
+    systemd_dest = '/etc/systemd/system/{app_name}-{instance_name}.service'.format(**env)
     if not exists(systemd_dest):
         upload_template(systemd_template, systemd_tmp_dest, env.context)
         sudo('mv {} {}'.format(systemd_tmp_dest, systemd_dest))
-        sudo('systemctl enable {instance_name}.service'.format(**env))
-        sudo('systemctl start {instance_name}.service'.format(**env))
+        sudo('systemctl enable {app_name}-{instance_name}.service'.format(**env))
+        sudo('systemctl start {app_name}-{instance_name}.service'.format(**env))
 
 
 def _remove_service():
     """
     Stop the service, and remove its configuration
     """
-    systemd_dest = '/etc/systemd/system/{instance_name}.service'.format(**env)
+    systemd_dest = '/etc/systemd/system/{app_name}-{instance_name}.service'.format(**env)
     if exists(systemd_dest):
-        sudo('systemctl disable {instance_name}.service'.format(**env))
-        sudo('systemctl stop {instance_name}.service'.format(**env))
+        sudo('systemctl disable {app_name}-{instance_name}.service'.format(**env))
+        sudo('systemctl stop {app_name}-{instance_name}.service'.format(**env))
         sudo('rm {}'.format(systemd_dest))
 
 
@@ -201,6 +207,18 @@ def _update_image():
     """
     run("eval $(aws ecr get-login --no-include-email --region us-east-1) && "
         "docker pull {repository_url}:latest".format(**env))
+
+    # Delete the container if it exists
+    containers = run('docker ps -a --filter name={app_name}-{instance_name} --format "{{{{.ID}}}}"'.format(**env))
+    if len(containers) > 0:
+        sudo('systemctl stop {app_name}-{instance_name}'.format(**env))
+        run('docker rm -f {app_name}-{instance_name}'.format(**env))
+
+    run('docker create --env-file /testing/{app_name}/{instance_name}/test.env --name {app_name}-{instance_name} {repository_url}:latest'.format(**env))
+
+    # If the container existed before, we need to start it again
+    if len(containers) > 0:
+        sudo('systemctl start {app_name}-{instance_name}'.format(**env))
 
 
 def _prune_docker():
@@ -229,13 +247,33 @@ def create_test_instance(branch_name, instance_name=''):
         'BRANCH_NAME': env.branch_name,
         'RELEASE': env.release,
     }
-    env.repository_url = _create_repository()
+    env.repository_url = _get_or_create_repository()
     _build()
     _upload_to_repository()
     _setup_path()
-    _update_image()
     _setup_templates()
+    _update_image()
     _setup_service()
+
+
+def update_test_instance(instance_name):
+    """
+    Update a test instance with a new image
+    """
+    env.instance_name = instance_name
+    env.branch_name = local('git rev-parse --abbrev-ref HEAD')
+    env.release = local('git rev-parse --verify HEAD')
+    env.context = {
+        'APP_NAME': env.app_name,
+        'INSTANCE_NAME': instance_name,
+        'BRANCH_NAME': env.branch_name,
+        'RELEASE': env.release,
+    }
+    env.repository_url = _get_or_create_repository()
+    _build()
+    _upload_to_repository()
+    _update_image()
+    sudo('systemctl start {app_name}-{instance_name}.service'.format(**env))
 
 
 def remove_test_instance(instance_name):
@@ -249,3 +287,17 @@ def remove_test_instance(instance_name):
     _remove_service()
     _remove_path()
     _prune_docker()
+
+
+def list_test_instances(app_name=''):
+    """
+    @brief      return a list of test instances on the server
+
+    @return     outputs the list to the console
+    """
+    if app_name:
+        find_cmd = 'find /testing/{}/ -mindepth 1 -maxdepth 1 -type d -print '.format(app_name)
+    else:
+        find_cmd = 'find /testing/ -mindepth 2 -maxdepth 2 -type d -print'
+    output = run('{} | sed -e "s;/testing/;;g;s;/;-;g"'.format(find_cmd))
+    print output
