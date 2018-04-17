@@ -7,7 +7,6 @@ from fabric.api import env, local, sudo, run
 from fabric.contrib.files import upload_template, exists
 
 # TODO:
-# Add update method
 # Add start, stop, restart, list methods
 # Make sure steps to implement are documented
 # Create user account with RSA keys for github
@@ -219,7 +218,7 @@ def _update_image():
 
     # If the container existed before, we need to start it again
     if len(containers) > 0:
-        run('docker start -a {app_name}-{instance_name}'.format(**env))
+        sudo('systemctl start {app_name}-{instance_name}'.format(**env))
 
 
 def _prune_docker():
