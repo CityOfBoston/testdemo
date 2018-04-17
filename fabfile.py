@@ -8,7 +8,6 @@ from fabric.contrib.files import upload_template, exists
 
 # TODO:
 # Add update method
-#   - Figure out why update screws up the running container
 # Add start, stop, restart, list methods
 # Make sure steps to implement are documented
 # Create user account with RSA keys for github
@@ -173,23 +172,23 @@ def _setup_service():
     Set up the service
     """
     systemd_template = 'deploy/systemd-test.conf.template'
-    systemd_tmp_dest = '/tmp/{instance_name}.service'.format(**env)
-    systemd_dest = '/etc/systemd/system/{instance_name}.service'.format(**env)
+    systemd_tmp_dest = '/tmp/{app_name}-{instance_name}.service'.format(**env)
+    systemd_dest = '/etc/systemd/system/{app_name}-{instance_name}.service'.format(**env)
     if not exists(systemd_dest):
         upload_template(systemd_template, systemd_tmp_dest, env.context)
         sudo('mv {} {}'.format(systemd_tmp_dest, systemd_dest))
-        sudo('systemctl enable {instance_name}.service'.format(**env))
-        sudo('systemctl start {instance_name}.service'.format(**env))
+        sudo('systemctl enable {app_name}-{instance_name}.service'.format(**env))
+        sudo('systemctl start {app_name}-{instance_name}.service'.format(**env))
 
 
 def _remove_service():
     """
     Stop the service, and remove its configuration
     """
-    systemd_dest = '/etc/systemd/system/{instance_name}.service'.format(**env)
+    systemd_dest = '/etc/systemd/system/{app_name}-{instance_name}.service'.format(**env)
     if exists(systemd_dest):
-        sudo('systemctl disable {instance_name}.service'.format(**env))
-        sudo('systemctl stop {instance_name}.service'.format(**env))
+        sudo('systemctl disable {app_name}-{instance_name}.service'.format(**env))
+        sudo('systemctl stop {app_name}-{instance_name}.service'.format(**env))
         sudo('rm {}'.format(systemd_dest))
 
 
@@ -213,8 +212,8 @@ def _update_image():
     # Delete the container if it exists
     containers = run('docker ps -a --filter name={app_name}-{instance_name} --format "{{{{.ID}}}}"'.format(**env))
     if len(containers) > 0:
-        run('docker stop -t2 {app_name}-{instance_name}'.format(**env))
-        run('docker rm {app_name}-{instance_name}'.format(**env))
+        sudo('systemctl stop {app_name}-{instance_name}'.format(**env))
+        run('docker rm -f {app_name}-{instance_name}'.format(**env))
 
     run('docker create --env-file /testing/{app_name}/{instance_name}/test.env --name {app_name}-{instance_name} {repository_url}:latest'.format(**env))
 
@@ -275,7 +274,7 @@ def update_test_instance(instance_name):
     _build()
     _upload_to_repository()
     _update_image()
-    sudo('systemctl start {instance_name}.service'.format(**env))
+    sudo('systemctl start {app_name}-{instance_name}.service'.format(**env))
 
 
 def remove_test_instance(instance_name):
