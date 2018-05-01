@@ -56,7 +56,6 @@ echo "  INSTANCE_NAME: $INSTANCE"
 echo "  BRANCH_NAME: $BRANCH"
 echo "  RELEASE: $RELEASE"
 
-gatsby build
 
 docker build \
     -t $APP/$INSTANCE \
